@@ -1,4 +1,4 @@
-# Evaluate bias in the odonate datadase in France
+# Evaluate biases in the odonate datadase in France
 
 This repository contains code to analyze biases in the French odonate dataset. 
 
