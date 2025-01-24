@@ -1,0 +1,102 @@
+---
+title: "Summarize data"
+format:
+  html:
+    code-fold: true
+    embed-resources: true
+editor: source
+---
+
+# Libraries etc
+
+```{r}
+library(here)
+
+library(data.table)
+library(DT)
+
+library(ggplot2)
+library(rnaturalearth)
+
+library(sf)
+
+read_folder <- here("data/02_clean")
+```
+
+# Prepare data
+
+## Read data
+
+```{r}
+df_steli <- readRDS(file.path(read_folder, "steli.rds"))
+df_atlas <- readRDS(file.path(read_folder, "atlas.rds"))
+```
+
+## Format data
+
+```{r}
+df_steli[, source := "STELI"]
+df_atlas[, source := "atlas"]
+```
+
+```{r}
+dat <- rbind(df_steli,
+             df_atlas,
+             fill = TRUE)
+```
+
+```{r}
+rm(df_atlas)
+rm(df_steli)
+```
+
+```{r}
+# Filter only species level information
+dat <- dat[taxonRank == "SPECIES", ]
+```
+
+# Summarize data
+
+```{r}
+# Number of observations by program
+dat[, .N, by = source] |> 
+  datatable()
+
+# Number of species
+dat[, .N, by = scientificName][order(-N), ] |> 
+  datatable()
+```
+
+
+```{r}
+datN <- dat[, .N, by = list(source, year(dat$eventDate))]
+
+ggplot(datN) +
+  geom_line(aes(x = year, y = N)) +
+  facet_wrap(facets = vars(source), 
+             scales = "free")
+```
+
+```{r}
+dat_sf <- st_as_sf(dat,
+                   coords = c("decimalLongitude", "decimalLatitude"))
+st_crs(dat_sf) <- 4326
+```
+
+```{r}
+# Get French map
+fr <- ne_countries(scale = 50, 
+                   country = "France")
+
+# Data bounding box
+bbox <- st_bbox(dat_sf)
+
+ggplot() +
+  geom_sf(data = fr) +
+  xlim(bbox$xmin, bbox$xmax) +
+  ylim(bbox$ymin, bbox$ymax) +
+  geom_sf(data = dat_sf, 
+          aes(col = source), size = 0.1) +
+  facet_wrap(facets = vars(source))
+```
+
