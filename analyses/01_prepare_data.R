@@ -20,8 +20,14 @@ library(stringr)
 # Spatial analysis
 library(sf)
 
+# Paths
+fun_folder <- here("functions")
 read_folder <- here("data/01_raw")
 write_folder <- here("data/02_clean")
+
+# Own functions
+source(file.path(fun_folder, "format_data.R"))
+
 
 # Read data ---------------------------------------------------------------
 
@@ -103,10 +109,6 @@ setnames(df_atlas,
          new = c("scientificName", "verbatimName", "taxonRank", "taxonID"))
 
 ## Dates -----
-date_fmt$France_STELI <- "%d/%m/%Y" # + time & sampling effort
-date_fmt$France_OPIE <- "%Y-%m-%d"
-
-
 df_steli[, eventDate := as.IDate(eventDate, format =  "%d/%m/%Y")]
 df_atlas[, eventDate := as.IDate(eventDate, format =  "%Y-%m-%d")]
 
@@ -140,9 +142,6 @@ setnames(df_steli,
          old = c("lon centroid site", "lat centroid site"),
          new = c("decimalLongitude", "decimalLatitude"))
 
-df_steli <- st_as_sf(df_steli, wkt = "decimalCoordinates")
-df_atlas <- st_as_sf(df_atlas, wkt = "decimalCoordinates")
-
 ## Reorder columns -----
 cnames_steli <- names_key$Standard[names_key$Standard %in% colnames(df_steli)]
 setcolorder(df_steli,
@@ -159,16 +158,16 @@ write.table(df_steli,
             row.names = FALSE,
             qmethod = "double",
             sep = ",")
+saveRDS(df_steli,
+        file = file.path(write_folder,
+                         "steli.rds"))
+
 write.table(df_atlas,
             file = file.path(write_folder,
                              "atlas.csv"),
             row.names = FALSE,
             qmethod = "double",
             sep = ",")
-
-saveRDS(df_steli,
-        file = file.path(write_folder,
-                         "steli.rds"))
 saveRDS(df_atlas,
         file = file.path(write_folder,
                          "atlas.rds"))
