@@ -28,3 +28,5 @@ rename_cols <- function(key, dtable, nam) {
            old = newnames_df[[nam]],
            new = newnames_df$Standard)
 }
+
+f <- function(x){length(unique(x))}
