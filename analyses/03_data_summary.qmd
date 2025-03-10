@@ -7,7 +7,7 @@ format:
 editor: source
 ---
 
-# Libraries etc
+## Libraries etc
 
 ```{r}
 library(here)
@@ -17,22 +17,26 @@ library(DT)
 
 library(ggplot2)
 library(rnaturalearth)
+library(dplyr)
 
 library(sf)
 
-read_folder <- here("data/02_clean")
+read_folder <- here("data/03_grid")
 ```
 
-# Prepare data
+## Prepare data
 
-## Read data
+### Read data
 
 ```{r}
 df_steli <- readRDS(file.path(read_folder, "steli.rds"))
 df_atlas <- readRDS(file.path(read_folder, "atlas.rds"))
+
+df_steli <- as.data.table(df_steli)
+df_atlas <- as.data.table(df_atlas)
 ```
 
-## Format data
+### Format data
 
 ```{r}
 df_steli[, source := "STELI"]
@@ -55,7 +59,9 @@ rm(df_steli)
 dat <- dat[taxonRank == "SPECIES", ]
 ```
 
-# Summarize data
+## Summarize data
+
+### Tables
 
 ```{r}
 # Number of observations by program
@@ -68,6 +74,8 @@ dat[, .N, by = scientificName][order(-N), ] |>
 ```
 
 
+### Data evolution
+
 ```{r}
 datN <- dat[, .N, by = list(source, year(dat$eventDate))]
 
@@ -77,26 +85,69 @@ ggplot(datN) +
              scales = "free")
 ```
 
+### Map
+
 ```{r}
 dat_sf <- st_as_sf(dat,
-                   coords = c("decimalLongitude", "decimalLatitude"))
+                   wkt = "decimalCoordinates")
 st_crs(dat_sf) <- 4326
+
+# Transform
+dat_3035 <- st_transform(dat_sf, crs = 3035)
 ```
+
+Plot raw data points:
 
 ```{r}
 # Get French map
 fr <- ne_countries(scale = 50, 
                    country = "France")
+fr_3035 <- st_transform(fr, 3035)
+```
 
+```{r}
 # Data bounding box
-bbox <- st_bbox(dat_sf)
+bbox <- st_bbox(dat_3035)
 
 ggplot() +
-  geom_sf(data = fr) +
+  geom_sf(data = fr_3035) +
   xlim(bbox$xmin, bbox$xmax) +
   ylim(bbox$ymin, bbox$ymax) +
-  geom_sf(data = dat_sf, 
+  geom_sf(data = dat_3035,
           aes(col = source), size = 0.1) +
   facet_wrap(facets = vars(source))
+```
+
+Plot data on grid:
+
+```{r}
+# Get grid
+grid <- readRDS(file.path(read_folder, 
+                          "grid_scale_10000.rds"))
+```
+
+```{r}
+# Sumarize with grid
+nobs <- st_drop_geometry(dat) |>
+  group_by(id_10000, source) |>
+  summarize(nobs = n(), .groups = "drop")
+
+nobs_grid <- grid |>
+  right_join(nobs, by = c("id" = "id_10000"))
+```
+
+```{r}
+# Plot data
+ggplot() +
+  geom_sf(data = fr_3035) +
+  geom_sf(data = nobs_grid, aes(fill = nobs),
+          color = "transparent") +
+  facet_grid(cols = vars(source)) +
+  xlim(bbox$xmin, bbox$xmax) +
+  ylim(bbox$ymin, bbox$ymax) +
+  scale_fill_viridis_c(na.value = "lightgrey",
+                       trans = "log") +
+  theme(legend.position = "bottom",
+        legend.key.size = unit(1.5, 'cm'))
 ```
 
