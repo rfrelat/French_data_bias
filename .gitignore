@@ -1,3 +1,6 @@
 data/
 .Rproj.user/
 French_data_bias.Rproj
+*.docx
+*.py
+test_*
